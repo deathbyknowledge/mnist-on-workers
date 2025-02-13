@@ -1,0 +1,15 @@
+name = "mnist"
+main = "build/worker/shim.mjs"
+compatibility_date = "2025-02-13"
+
+[build]
+command = "cargo install -q worker-build && worker-build --release"
+
+[durable_objects]
+bindings = [
+  { name = "MODEL", class_name = "ModelRunner" } # the `class_name` uses the Rust struct identifier name
+]
+
+[[migrations]]
+tag = "v1" # Should be unique for each entry
+new_classes = ["ModelRunner"] # Array of new classes
