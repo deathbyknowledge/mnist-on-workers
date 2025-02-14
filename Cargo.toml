@@ -1,8 +1,11 @@
 [package]
-name = "mnist"
+name = "mnist-wasm"
 version = "0.1.0"
 edition = "2021"
 authors = [ "Steve James <sjames@cloudflare.com>" ]
+
+[profile.release]
+lto = true
 
 [package.metadata.release]
 release = false

@@ -673,7 +673,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "mnist"
+name = "mnist-wasm"
 version = "0.1.0"
 dependencies = [
  "burn",

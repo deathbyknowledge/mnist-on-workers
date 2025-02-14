@@ -1,9 +1,13 @@
-name = "mnist"
+name = "mnist-wasm"
 main = "build/worker/shim.mjs"
 compatibility_date = "2025-02-13"
 
 [build]
 command = "cargo install -q worker-build && worker-build --release"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
 
 [durable_objects]
 bindings = [

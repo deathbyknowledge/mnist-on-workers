@@ -1,4 +1,4 @@
-// Copied from the https://github.com/ultravioletrs/ai/blob/main/burn-algorithms/mnist/src/model.rs package
+// Copied from https://github.com/tracel-ai/burn/blob/main/examples/mnist-inference-web/src/model.rs
 
 use burn::{
     module::Module,
@@ -103,7 +103,7 @@ impl<B: Backend> ConvBlock<B> {
     }
 }
 
-pub fn build_and_load_model() -> Model<NDBackend> {
+pub async fn build_and_load_model() -> Model<NDBackend> {
     let model: Model<NDBackend> = Model::new(&Default::default());
     let record = BinBytesRecorder::<FullPrecisionSettings>::default()
         .load(STATE_ENCODED.to_vec(), &Default::default())
