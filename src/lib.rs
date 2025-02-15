@@ -1,6 +1,6 @@
 pub mod model;
 
-use crate::model::{build_and_load_model, Model, NDBackend};
+use crate::model::{Model, NDBackend};
 use burn::tensor::Tensor;
 use worker::*;
 
@@ -23,7 +23,7 @@ impl DurableObject for ModelRunner {
 
     async fn fetch(&mut self, mut req: Request) -> Result<Response> {
         if self.model.is_none() {
-            self.model = Some(build_and_load_model().await);
+            self.load_model().await?;
         }
 
         let numbers: Vec<f32> = req.json().await?;
@@ -50,6 +50,27 @@ impl ModelRunner {
         let output = burn::tensor::activation::softmax(output, 1);
         let predictions = output.into_data();
         predictions.to_vec().unwrap()
+    }
+
+    async fn load_model(&mut self) -> Result<()> {
+        use burn::{
+            module::Module,
+            record::{BinBytesRecorder, FullPrecisionSettings, Recorder},
+        };
+        console_log!("No model present. Initializing.");
+        let bucket = self.env.bucket("BUCKET")?;
+        console_log!("Fetching model from R2...");
+        let obj = bucket.get("model.bin").execute().await?.expect("msg");
+        let bytes = obj.body().unwrap().bytes().await?;
+        console_log!("Model weights acquired. Loading into model...");
+        let model: Model<NDBackend> = Model::new(&Default::default());
+        let record = BinBytesRecorder::<FullPrecisionSettings>::default()
+            .load(bytes, &Default::default())
+            .expect("Failed to decode state");
+
+        console_log!("Successfully loaded model.");
+        self.model = Some(model.load_record(record));
+        Ok(())
     }
 }
 

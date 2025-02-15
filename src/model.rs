@@ -3,11 +3,9 @@
 use burn::{
     module::Module,
     prelude::*,
-    record::{BinBytesRecorder, FullPrecisionSettings, Recorder},
 };
 use nn::{BatchNorm, PaddingConfig2d};
 
-static STATE_ENCODED: &[u8] = include_bytes!("../model.bin");
 const NUM_CLASSES: usize = 10;
 pub type NDBackend = burn::backend::ndarray::NdArray<f32>;
 
@@ -101,13 +99,4 @@ impl<B: Backend> ConvBlock<B> {
 
         self.activation.forward(x)
     }
-}
-
-pub async fn build_and_load_model() -> Model<NDBackend> {
-    let model: Model<NDBackend> = Model::new(&Default::default());
-    let record = BinBytesRecorder::<FullPrecisionSettings>::default()
-        .load(STATE_ENCODED.to_vec(), &Default::default())
-        .expect("Failed to decode state");
-
-    model.load_record(record)
 }

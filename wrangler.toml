@@ -9,6 +9,11 @@ command = "cargo install -q worker-build && worker-build --release"
 directory = "./public"
 binding = "ASSETS"
 
+[[r2_buckets]]
+binding = "BUCKET"
+bucket_name = "models"
+preview_bucket_name = "models"
+
 [durable_objects]
 bindings = [
   { name = "MODEL", class_name = "ModelRunner" } # the `class_name` uses the Rust struct identifier name
