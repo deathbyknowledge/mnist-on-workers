@@ -5,18 +5,18 @@ use burn::tensor::Tensor;
 use worker::*;
 
 #[durable_object]
-pub struct ModelRunner {
+pub struct MNISTClassifier {
     model: Option<Model<NDBackend>>,
-    state: State,
+    _state: State,
     env: Env,
 }
 
 #[durable_object]
-impl DurableObject for ModelRunner {
+impl DurableObject for MNISTClassifier {
     fn new(state: State, env: Env) -> Self {
         Self {
             model: None,
-            state: state,
+            _state: state,
             env,
         }
     }
@@ -26,17 +26,18 @@ impl DurableObject for ModelRunner {
             self.load_model().await?;
         }
 
+        // Expects it to be an array of 28 * 28 floats
         let numbers: Vec<f32> = req.json().await?;
-        console_log!("{:?}", numbers);
 
+        // Array of probabilities for our lables (0 to 9)
         let result = self.classify(&numbers);
-        console_log!("{:?}", result);
 
         Response::from_json(&result)
     }
 }
 
-impl ModelRunner {
+impl MNISTClassifier {
+    /// Classify the input image [f32; 28*28] and return the array of probabilities.
     fn classify(&mut self, input: &[f32]) -> Vec<f32> {
         let device = Default::default();
         let input = Tensor::<NDBackend, 1>::from_floats(input, &device).reshape([1, 28, 28]);
@@ -52,23 +53,28 @@ impl ModelRunner {
         predictions.to_vec().unwrap()
     }
 
+    /// Fetch model weights from R2 and load the model into the DO
     async fn load_model(&mut self) -> Result<()> {
         use burn::{
             module::Module,
             record::{BinBytesRecorder, FullPrecisionSettings, Recorder},
         };
-        console_log!("No model present. Initializing.");
         let bucket = self.env.bucket("BUCKET")?;
-        console_log!("Fetching model from R2...");
-        let obj = bucket.get("model.bin").execute().await?.expect("msg");
-        let bytes = obj.body().unwrap().bytes().await?;
-        console_log!("Model weights acquired. Loading into model...");
+        let obj = bucket
+            .get("mnist.bin")
+            .execute()
+            .await?
+            .expect("Couldn't find model weights, did you forget to upload them?");
+        let bytes = obj
+            .body()
+            .expect("Failed to read object body")
+            .bytes()
+            .await?;
         let model: Model<NDBackend> = Model::new(&Default::default());
         let record = BinBytesRecorder::<FullPrecisionSettings>::default()
             .load(bytes, &Default::default())
             .expect("Failed to decode state");
 
-        console_log!("Successfully loaded model.");
         self.model = Some(model.load_record(record));
         Ok(())
     }
@@ -77,11 +83,19 @@ impl ModelRunner {
 #[event(fetch)]
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     console_error_panic_hook::set_once();
+    // Read request's continent
+    let continent = req
+        .cf()
+        .expect("Failed to read CF request info")
+        .continent()
+        .expect("Failed to read CF Continent");
 
+    // Durable Objects get geographically pinned, so we'll instantiate
+    // them by the source continent of the request.
     if req.path().contains("/classify") {
         let model_runner = env
-            .durable_object("MODEL")?
-            .id_from_name("MY_MODEL_RUNNER")?
+            .durable_object("CLASSIFIER")?
+            .id_from_name(&continent)?
             .get_stub()?;
         model_runner.fetch_with_request(req).await
     } else {
