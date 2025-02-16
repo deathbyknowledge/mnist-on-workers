@@ -83,16 +83,17 @@ impl MNISTClassifier {
 #[event(fetch)]
 async fn fetch(req: Request, env: Env, _ctx: Context) -> Result<Response> {
     console_error_panic_hook::set_once();
-    // Read request's continent
-    let continent = req
-        .cf()
-        .expect("Failed to read CF request info")
-        .continent()
-        .expect("Failed to read CF Continent");
 
     // Durable Objects get geographically pinned, so we'll instantiate
     // them by the source continent of the request.
-    if req.path().contains("/classify") {
+    if req.method() == Method::Post && req.path().contains("/classify") {
+        // Read request's continent
+        let continent = req
+            .cf()
+            .expect("Failed to read CF request info")
+            .continent()
+            .expect("Failed to read CF Continent");
+
         let model_runner = env
             .durable_object("CLASSIFIER")?
             .id_from_name(&continent)?
